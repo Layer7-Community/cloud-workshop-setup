@@ -1,0 +1,153 @@
+apiVersion: security.brcmlabs.com/v1
+kind: Gateway
+metadata:
+  name: ssg-prod
+spec:
+  version: "11.1.00"
+  license:
+    accept: true
+    secretName: gateway-license
+  app:
+    replicas: 1
+    image: docker.io/caapim/gateway:11.1.00
+    imagePullPolicy: IfNotPresent
+    #serviceAccountName: ssg-serviceaccount
+    updateStrategy:
+      type: rollingUpdate
+      rollingUpdate:
+        maxUnavailable: 0
+        maxSurge: 2
+    resources:
+      requests:
+        memory: 4Gi
+        cpu: 2
+      limits:
+        memory: 4Gi
+        cpu: 2
+    autoscaling:
+      enabled: false
+    bundle: []
+      # - type: graphman
+      #   source: secret
+      #   name: dev-gateway-bundle
+    repositoryReferences:
+      - name: l7-gw-myframework
+        enabled: true
+        type: static
+        encryption:
+          existingSecret: graphman-encryption-secret
+          key: FRAMEWORK_ENCRYPTION_PASSPHRASE
+      - name: l7-gw-myapis
+        enabled: true
+        type: dynamic
+        encryption:
+          existingSecret: graphman-encryption-secret
+          key: APIS_ENCRYPTION_PASSPHRASE
+      - name: l7-gw-mysubscriptions
+        enabled: true
+        type: dynamic
+        encryption:
+          existingSecret: graphman-encryption-secret
+          key: SUBSCRIPTIONS_ENCRYPTION_PASSPHRASE
+    bootstrap:
+      script:
+        enabled: false
+    initContainers: []
+    hazelcast:
+      external: false
+      endpoint: hazelcast.example.com:5701
+    management:
+      secretName: gateway-secret
+      #username: admin
+      #password: 7layer
+      # Management port requires a separate service...
+      service:
+        enabled: true
+        #annotations:
+          # cloud.google.com/load-balancer-type: "Internal"
+        type: LoadBalancer
+        ports:
+        - name: management
+          port: 9443
+          targetPort: 9443
+          protocol: TCP   
+      restman:
+        enabled: false
+      graphman:
+        enabled: true
+        initContainerImage: docker.io/layer7api/graphman-static-init:1.0.1
+      cluster:
+        #password: 7layer
+        hostname: myprodgw.brcmlabs.com
+      database:
+        enabled: false
+    java:
+      jvmHeap:
+        calculate: true
+        percentage: 75
+        default: 2g
+      extraArgs:
+      - -Dcom.l7tech.server.audit.message.saveToInternal=false
+      - -Dcom.l7tech.server.audit.admin.saveToInternal=false
+      - -Dcom.l7tech.server.audit.system.saveToInternal=false
+      - -Dcom.l7tech.server.audit.log.format=json
+      - -Djava.util.logging.config.file=/opt/SecureSpan/Gateway/node/default/etc/conf/log-override.properties
+      - -Dcom.l7tech.security.ssl.hostAllowWildcard=true
+      #- -Dcom.l7tech.server.pkix.useDefaultTrustAnchors=true
+      #- -Dcom.l7tech.bootstrap.autoTrustSslKey=false
+    listenPorts:
+      harden: false
+      custom:
+        enabled: false
+      ports: []
+    cwp:
+      enabled: true
+      properties:
+        - name: io.httpsHostAllowWildcard
+          value: "true"
+        - name: log.levels
+          value: |
+            com.l7tech.level = CONFIG
+            com.l7tech.server.policy.variable.ServerVariables.level = SEVERE
+            com.l7tech.external.assertions.odata.server.producer.jdbc.GenerateSqlQuery.level = SEVERE
+            com.l7tech.server.policy.assertion.ServerSetVariableAssertion.level = SEVERE
+            com.l7tech.external.assertions.comparison.server.ServerComparisonAssertion = SEVERE
+        - name: audit.setDetailLevel.FINE
+          value: 152 7101 7103 9648 9645 7026 7027 4155 150 4716 4114 6306 4100 9655 150 151 11000 4104
+    system:
+      properties: |-
+        # Default Gateway system properties
+        # Configuration properties for shared state extensions.
+        com.l7tech.server.extension.sharedKeyValueStoreProvider=embeddedhazelcast
+        com.l7tech.server.extension.sharedCounterProvider=ssgdb
+        com.l7tech.server.extension.sharedClusterInfoProvider=ssgdb
+        # By default, FIPS module will block an RSA modulus from being used for encryption if it has been used for
+        # signing, or visa-versa. Set true to disable this default behaviour and remain backwards compatible.
+        com.safelogic.cryptocomply.rsa.allow_multi_use=true
+        # Specifies the type of Trust Store (JKS/PKCS12) provided by AdoptOpenJDK that is used by Gateway.
+        # Must be set correctly when Gateway is running in FIPS mode. If not specified it will default to PKCS12.
+        javax.net.ssl.trustStoreType=jks
+        com.l7tech.server.clusterStaleNodeCleanupTimeoutSeconds=86400
+        # Additional properties go here
+    service:
+      # annotations:
+      type: ClusterIP
+      ports:
+      - name: https
+        port: 8443
+        targetPort: 8443
+        protocol: TCP
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      annotations:
+        nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+        cert-manager.io/cluster-issuer: "brcmlabs-issuer"
+        # nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+      tls:
+      - hosts: 
+        - PROD_GATEWAY_HOST
+        secretName: prod-gateway-tls
+      rules:
+      - host: PROD_GATEWAY_HOST
+ 
