@@ -1,0 +1,19 @@
+env:
+  open:
+    DISABLE_API: false
+    ALLOW_OVERWRITE: true
+persistence:
+  enabled: true
+  size: 8Gi
+
+ingress:
+  enabled: true
+  annotations:
+    cert-manager.io/cluster-issuer: brcmlabs-issuer
+  hosts:
+    - name: CHARTMUSEUM_HOST
+      path: /
+      tls: true
+      tlsSecret: brcmlabs
+  ingressClassName: nginx
+

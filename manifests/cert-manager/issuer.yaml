@@ -1,0 +1,18 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: brcmlabs-issuer
+  namespace: cert-manager
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: <email-address>
+    privateKeySecretRef:
+      name: letsencrypt-production
+    solvers:
+    - dns01:
+        cloudDNS:
+          project: slipstream-222523
+          serviceAccountSecretRef:
+            name: provider-cloud-dns-key
+            key: key.json

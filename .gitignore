@@ -1,0 +1,5 @@
+.DS_Store
+license.xml
+slipstream-gcloud.json
+*-tmp.yaml
+kubeconfig/*

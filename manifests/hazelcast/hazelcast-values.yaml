@@ -1,0 +1,48 @@
+# https://docs.hazelcast.com/hazelcast/latest/kubernetes/helm-hazelcast-chart
+image:
+  repository: "hazelcast/hazelcast"
+  tag: "5.3.2"
+  pullPolicy: IfNotPresent
+cluster:
+  memberCount: 3
+mancenter:
+  enabled: true
+  devMode:
+    enabled: true
+  ingress:
+    enabled: true
+    annotations:
+      cert-manager.io/cluster-issuer: "brcmlabs-issuer"
+    className: nginx
+    hosts:
+    - MANCENTER_HOST
+    tls:
+    - secretName: brcmlabs
+      hosts:
+      - MANCENTER_HOST
+affinity:
+ podAntiAffinity:
+   requiredDuringSchedulingIgnoredDuringExecution:
+   - labelSelector:
+       matchExpressions:
+       - key: app.kubernetes.io/name
+         operator: In
+         values:
+         - hazelcast
+       - key: role
+         operator: In
+         values:
+         - hazelcast
+     topologyKey: kubernetes.io/hostname
+hazelcast:
+  yaml:
+    hazelcast:
+      network:
+        join:
+          multicast:
+            enabled: false
+          kubernetes:
+            enabled: true
+            service-name: ${serviceName}
+            namespace: ${namespace}
+            resolve-not-ready-addresses: true
