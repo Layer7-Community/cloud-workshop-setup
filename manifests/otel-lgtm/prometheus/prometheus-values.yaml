@@ -122,7 +122,7 @@ grafana:
     ## Must be provided if Ingress is enable.
     ##
     hosts:
-      - grafana.brcmlabs.com
+      - GRAFANA_HOST
 
     ## Path for grafana ingress
     path: /
@@ -133,4 +133,4 @@ grafana:
     tls:
     - secretName: brcmlabs
       hosts:
-      - grafana.brcmlabs.com
+      - GRAFANA_HOST
